@@ -1,6 +1,6 @@
 function run() {
   var url = "https://scripts.mit.edu/~mitoc/wall/";
-  var db = getSheetId();
+  var db = DB(getSheetId());
   
   console.info("getting html from " + url);
   var options = {'muteHttpExceptions' : false};
@@ -17,13 +17,13 @@ function run() {
     var savedIds = null;// does .gs have a better way to do lazy vals ?
     var newIds = parsed.ids.filter(function(id) {
       if (!savedIds) {
-        savedIds = getSavedIds(db);
+        savedIds = db.getSavedIds();
       }
       savedIds.indexOf(id) < 0;
     })
     if (newIds.length > 0) {
-      saveHours(idArr, db);
-      sendEmails(hoursArr, getEmails(db), url);
+      db.saveIds(idArr);
+      sendEmails(hoursArr, db.getEmails(), url);
     }
     
     console.info("run finished successfully");
@@ -82,51 +82,55 @@ function parseHours(text) {
   return obj;
 }
 
-function getSavedIds(sheetId) {
-  console.info("getting existiing hours' ids");
-  var rangeName = 'B2:B100';
-  var values = Sheets.Spreadsheets.Values.get(sheetId, rangeName).values;
-  var ids = [];
-  if (values != undefined) {
-    ids = values.map(function(arr) {
-      return arr[0];
-    });
-  }
-  console.log(ids);
-  return ids;
-}
-
-function getEmails(sheetId) {
-  console.info("getting emails");
-  var rangeName = 'A2:A20';
-  var values = Sheets.Spreadsheets.Values.get(sheetId, rangeName).values;
-  var emails = [];
-  if (values != undefined) {
-    emails = values.map(function(arr) {
-      return arr[0];
-    });
-  }
-  console.log(emails);
-  return emails;
-}
-
-function saveHours(idArr, sheetId) {
-  console.info("saving hour ids: " + idArr);      
-  var valueRange = Sheets.newValueRange();
-  valueRange.values = idArr.map(function(value) { return [value]; });
-  var response = Sheets.Spreadsheets.Values.update(valueRange, sheetId, 'A2:A100', {
-    valueInputOption: 'RAW'
-  });
-  if (response.updatedCells < 1) {
-    throw ("could not update cell with hour id(s)");
-  }
-  return response;
-}
-
 function sendEmail(hoursArr, emailsArr, url) {
   console.info("sending email(s)");
   var email = Session.getActiveUser().getEmail();
   var subject = "New Mit Gym Hours";
   var body = hoursArr.toString() + "\n" + url;
   return GmailApp.sendEmail(emailsArr.join(","), subject, body);
+}
+
+function DB(sheetId) {
+  return {
+    getEmails: function() {
+      console.info("getting emails");
+      var rangeName = 'A2:A20';
+      var values = Sheets.Spreadsheets.Values.get(sheetId, rangeName).values;
+      var emails = [];
+      if (values != undefined) {
+        emails = values.map(function(arr) {
+          return arr[0];
+        });
+      }
+      console.log(emails);
+      return emails;
+    },
+    
+    getSavedIds: function() {
+      console.info("getting existiing hours' ids");
+      var rangeName = 'B2:B100';
+      var values = Sheets.Spreadsheets.Values.get(sheetId, rangeName).values;
+      var ids = [];
+      if (values != undefined) {
+        ids = values.map(function(arr) {
+          return arr[0];
+        });
+      }
+      console.log(ids);
+      return ids;
+    },
+    
+    saveIds: function(idArr) {
+      console.info("saving hour ids: " + idArr);      
+      var valueRange = Sheets.newValueRange();
+      valueRange.values = idArr.map(function(value) { return [value]; });
+      var response = Sheets.Spreadsheets.Values.update(valueRange, sheetId, 'A2:A100', {
+        valueInputOption: 'RAW'
+      });
+      if (response.updatedCells < 1) {
+        throw ("could not update cell with hour id(s)");
+      }
+      return response;
+    }
+  }
 }
