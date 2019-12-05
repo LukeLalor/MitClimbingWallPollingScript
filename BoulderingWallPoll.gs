@@ -14,12 +14,9 @@ function run() {
   } else {
     var parsed = parseHours(httpResponse.getContentText());
     
-    var savedIds = null;// does .gs have a better way to do lazy vals ?
+    var savedIds = lazy(db.getSavedIds);
     var newIds = parsed.ids.filter(function(id) {
-      if (!savedIds) {
-        savedIds = db.getSavedIds();
-      }
-      savedIds.indexOf(id) < 0;
+      savedIds.get().indexOf(id) < 0;
     })
     if (newIds.length > 0) {
       db.saveIds(idArr);
@@ -134,4 +131,16 @@ function DB(sheetId) {
       return response;
     }
   }
+}
+
+// only evaluate fn first time get() is called and store results for future calls
+function lazy(fn) {
+  return {
+    get: function() {
+      if (!this.instance) {
+        this.instance = fn();
+      }
+      return this.instance;
+    }
+  };
 }
