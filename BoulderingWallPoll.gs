@@ -5,33 +5,25 @@ function url() {
   return "https://scripts.mit.edu/~mitoc/wall/";
 }
 
-function checkUpdateAndSendEmail() {
-  console.info("getting hours");
-  var text = null;
-  try {
-    text = UrlFetchApp.fetch(url()).getContentText();
-  } catch (e) {
-    console.warn('could not get html from ' + url() + ': ' + e);
-  }
-  var idHoursRegex = new RegExp("data-hours-id=.([0-9]+).+time.+<span>(.+)<\/span>");
-  var match = idHoursRegex.exec(text);
-  if (!match) {
-    console.info("no hours found");
-  } else if (match.length % 3 != 0) {
-    throw("unexpected regex result: " + match);
+function run() {
+  console.info("getting html from " + url());
+  
+  var options = {'muteHttpExceptions' : false};
+  var httpResponse = UrlFetchApp.fetch(url(), options);
+  
+  if (httpResponse.getResponseCode() == 404) {
+    console.warn('404: count not reach ' + url());
+  } else if (httpResponse.getResponseCode() != 200) {
+    console.log(httpResponse)
+    throw("error reaching " + url() + ": " + httpResponse.getResponseCode())
   } else {
-    console.info("found hours");
-    var idArr = [];
-    var hoursArr = [];
-    for (var i = 0; i*3 < match.length; i++) {
-      var id = match[i+1];
-      var hours = match[i+2];
-      idArr.push(id);
-      hoursArr.push(hours);
-    }
+    var parsed = parseHours(httpResponse.getContentText());
     
-    var savedIds = getSavedIds()
-    var newIds = idArr.filter(function(id) {
+    var savedIds = null;// does .gs have a better way to do lazy vals ?
+    var newIds = parsed.ids.filter(function(id) {
+      if (!savedIds) {
+        savedIds = getSavedIds();
+      }
       savedIds.indexOf(id) < 0;
     })
     if (newIds.length > 0) {
@@ -43,37 +35,61 @@ function checkUpdateAndSendEmail() {
   }
 }
 
+function parseHours(text) {
+  console.info("parsing hours");
+  
+  var idHoursRegex = new RegExp("data-hours-id=.([0-9]+).+time.+<span>(.+)<\/span>");
+  var match = idHoursRegex.exec(text);
+  var obj = {
+    ids: [],
+    hours: []
+  }
+  if (match) {
+    if (match.length % 3 != 0) {
+      throw("unexpected regex result: " + match);
+    } else {
+      for (var i = 0; i*3 < match.length; i++) {
+        var id = match[i+1];
+        var hours = match[i+2];
+        obj.ids.push(id);
+        obj.hours.push(hours);
+      }
+    }
+  }
+  console.log(obj)
+  return obj;
+}
+
 function getSavedIds() {
-  console.info("getting existiing hours");
+  console.info("getting existiing hours' ids");
   var rangeName = 'A2:A100';
   var values = Sheets.Spreadsheets.Values.get(sheetId(), rangeName).values;
-  if (values == undefined) {
-    return [];
-  } else {
-    var ids = values.map(function(arr) {
+  var ids = [];
+  if (values != undefined) {
+    ids = values.map(function(arr) {
       return arr[0];
     });
-    return ids;
   }
+  console.log(ids);
+  return ids;
 }
 
 function getEmails() {
   console.info("getting emails");
   var rangeName = 'B2:B20';
   var values = Sheets.Spreadsheets.Values.get(sheetId(), rangeName).values;
-  if (values == undefined) {
-    return [];
-  } else {
-    var emails = values.map(function(arr) {
+  var emails = [];
+  if (values != undefined) {
+    emails = values.map(function(arr) {
       return arr[0];
     });
-    return emails;
   }
+  console.log(emails);
+  return emails;
 }
-  
 
 function saveHours(idArr, sheetId) {
-  console.info("saving hours");      
+  console.info("saving hour ids: " + idArr);      
   var valueRange = Sheets.newValueRange();
   valueRange.values = idArr.map(function(value) { return [value]; });
   var response = Sheets.Spreadsheets.Values.update(valueRange, sheetId, 'A2:A100', {
@@ -86,7 +102,7 @@ function saveHours(idArr, sheetId) {
 }
 
 function sendEmail(hoursArr, emailsArr) {
-  console.info("sending emails: " + emailsArr.join(", "));
+  console.info("sending email(s)");
   var email = Session.getActiveUser().getEmail();
   var subject = "New Mit Gym Hours";
   var body = hoursArr.toString() + "\n" + url();
