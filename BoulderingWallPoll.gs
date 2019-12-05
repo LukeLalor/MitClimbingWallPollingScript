@@ -122,7 +122,7 @@ function DB(sheetId) {
       console.info("saving hour ids: " + idArr);      
       var valueRange = Sheets.newValueRange();
       valueRange.values = idArr.map(function(value) { return [value]; });
-      var response = Sheets.Spreadsheets.Values.update(valueRange, sheetId, 'A2:A100', {
+      var response = Sheets.Spreadsheets.Values.update(valueRange, sheetId, 'B2:B100', {
         valueInputOption: 'RAW'
       });
       if (response.updatedCells < 1) {
