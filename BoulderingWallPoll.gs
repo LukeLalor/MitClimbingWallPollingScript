@@ -12,7 +12,7 @@ function run() {
   var httpResponse = UrlFetchApp.fetch(url(), options);
   
   if (httpResponse.getResponseCode() == 404) {
-    console.warn('404: count not reach ' + url());
+    console.warn('404: could not reach ' + url());
   } else if (httpResponse.getResponseCode() != 200) {
     console.log(httpResponse)
     throw("error reaching " + url() + ": " + httpResponse.getResponseCode())
