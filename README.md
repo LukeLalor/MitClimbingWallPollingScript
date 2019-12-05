@@ -4,7 +4,7 @@ send an email with hours when mit bouldering wall hours change
 This script runs in google scripts using a google sheet as a db, which means it is free to run with a gmail account
 
 To Run:
-1. Modify the email(s) in the csv to be your recipient(s) email(s)
+1. Modify the email(s) in db.csv to be your recipient(s) email(s)
 2. Save the attatched csv in google sheets
 3. Modify BoulderingWallPoll.gs to reference your csv's sheet id from 2
 4. Save BoulderingWallPoll.gs to google scripts
