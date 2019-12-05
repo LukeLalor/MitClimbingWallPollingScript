@@ -1,38 +1,60 @@
-function sheetId() {
-  return '1iei64t3-PFGC0JjAUZOFdF8sw3aDTFfXHfz-0dlBlWw';
-}
-function url() {
-  return "https://scripts.mit.edu/~mitoc/wall/";
-}
-
 function run() {
-  console.info("getting html from " + url());
+  var url = "https://scripts.mit.edu/~mitoc/wall/";
+  var db = getSheetId();
   
+  console.info("getting html from " + url);
   var options = {'muteHttpExceptions' : false};
-  var httpResponse = UrlFetchApp.fetch(url(), options);
+  var httpResponse = UrlFetchApp.fetch(url, options);
   
   if (httpResponse.getResponseCode() == 404) {
-    console.warn('404: could not reach ' + url());
+    console.warn('404: could not reach ' + url);
   } else if (httpResponse.getResponseCode() != 200) {
     console.log(httpResponse)
-    throw("error reaching " + url() + ": " + httpResponse.getResponseCode())
+    throw("error reaching " + url + ": " + httpResponse.getResponseCode())
   } else {
     var parsed = parseHours(httpResponse.getContentText());
     
     var savedIds = null;// does .gs have a better way to do lazy vals ?
     var newIds = parsed.ids.filter(function(id) {
       if (!savedIds) {
-        savedIds = getSavedIds();
+        savedIds = getSavedIds(db);
       }
       savedIds.indexOf(id) < 0;
     })
     if (newIds.length > 0) {
-      saveHours(idArr, sheetId());
-      sendEmails(hoursArr, getEmails());
+      saveHours(idArr, db);
+      sendEmails(hoursArr, getEmails(db), url);
     }
     
     console.info("run finished successfully");
   }
+}
+
+function getSheetId() {
+  console.info("getting db sheet id from properties")
+  var id = PropertiesService.getScriptProperties().getProperty("sheetId");
+  if (!id) {
+    id = createDB("BoulderingWallPollDB");
+    PropertiesService.getScriptProperties().setProperty("sheetId", id);
+  }
+  console.log(id)
+  return id;
+}
+
+function createDB(name) {
+  console.info("creating new db " + name)
+  var sheet = Sheets.newSpreadsheet();
+  sheet.properties = Sheets.newSpreadsheetProperties();
+  sheet.properties.title = name;
+  var id = Sheets.Spreadsheets.create(sheet).spreadsheetId;
+  
+  var valueRange = Sheets.newValueRange();
+  valueRange.values = [['emails', 'hour ids'], [Session.getActiveUser().getEmail()]];
+  var response = Sheets.Spreadsheets.Values.update(valueRange, id, 'A1:B2', {
+    valueInputOption: 'RAW'
+  });
+    
+  return id;
 }
 
 function parseHours(text) {
@@ -60,10 +82,10 @@ function parseHours(text) {
   return obj;
 }
 
-function getSavedIds() {
+function getSavedIds(sheetId) {
   console.info("getting existiing hours' ids");
-  var rangeName = 'A2:A100';
-  var values = Sheets.Spreadsheets.Values.get(sheetId(), rangeName).values;
+  var rangeName = 'B2:B100';
+  var values = Sheets.Spreadsheets.Values.get(sheetId, rangeName).values;
   var ids = [];
   if (values != undefined) {
     ids = values.map(function(arr) {
@@ -74,10 +96,10 @@ function getSavedIds() {
   return ids;
 }
 
-function getEmails() {
+function getEmails(sheetId) {
   console.info("getting emails");
-  var rangeName = 'B2:B20';
-  var values = Sheets.Spreadsheets.Values.get(sheetId(), rangeName).values;
+  var rangeName = 'A2:A20';
+  var values = Sheets.Spreadsheets.Values.get(sheetId, rangeName).values;
   var emails = [];
   if (values != undefined) {
     emails = values.map(function(arr) {
@@ -94,17 +116,17 @@ function saveHours(idArr, sheetId) {
   valueRange.values = idArr.map(function(value) { return [value]; });
   var response = Sheets.Spreadsheets.Values.update(valueRange, sheetId, 'A2:A100', {
     valueInputOption: 'RAW'
-  });      
+  });
   if (response.updatedCells < 1) {
     throw ("could not update cell with hour id(s)");
   }
   return response;
 }
 
-function sendEmail(hoursArr, emailsArr) {
+function sendEmail(hoursArr, emailsArr, url) {
   console.info("sending email(s)");
   var email = Session.getActiveUser().getEmail();
   var subject = "New Mit Gym Hours";
-  var body = hoursArr.toString() + "\n" + url();
+  var body = hoursArr.toString() + "\n" + url;
   return GmailApp.sendEmail(emailsArr.join(","), subject, body);
 }
