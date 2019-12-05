@@ -32,10 +32,11 @@ function run() {
 
 function getSheetId() {
   console.info("getting db sheet id from properties")
-  var id = PropertiesService.getScriptProperties().getProperty("sheetId");
+  var propertyService = PropertiesService.getScriptProperties();
+  var id = propertyService.getProperty("sheetId");
   if (!id) {
     id = createDB("BoulderingWallPollDB");
-    PropertiesService.getScriptProperties().setProperty("sheetId", id);
+    propertyService.setProperty("sheetId", id);
   }
   console.log(id)
   return id;
