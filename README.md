@@ -1,5 +1,4 @@
 # MitClimbingWallPollingScript
-send an email with hours when mit bouldering wall hours change
 
 This script runs in google scripts using a google sheet as a db, which means it is free to run with a gmail account
 
